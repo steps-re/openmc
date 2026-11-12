@@ -1,7 +1,9 @@
 # Temporary, steps-re fork only: size the #4222 effect before and after the fix, and
 # regenerate regression reference results for the fix. Never part of the upstream PR.
 name: steps photoelectron check
-on: workflow_dispatch
+on:
+  push:
+    branches: [steps-ci-photoelectron]
 env:
   HDF5_ROOT: /usr
   OMP_NUM_THREADS: 2
