@@ -421,11 +421,8 @@ void sample_photon_reaction(Particle& p)
           }
         }
 
-        double phi = uniform_distribution(0., 2.0 * PI, p.current_seed());
-        Direction u;
-        u.x = mu;
-        u.y = std::sqrt(1.0 - mu * mu) * std::cos(phi);
-        u.z = std::sqrt(1.0 - mu * mu) * std::sin(phi);
+        // The Sauter cosine is relative to the incident photon direction
+        Direction u = rotate_angle(p.u(), mu, nullptr, p.current_seed());
 
         // Process secondary electron at the photon collision site.
         process_charged_secondary(p, u, E_electron, ParticleType::electron());
