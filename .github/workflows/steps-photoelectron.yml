@@ -1,0 +1,60 @@
+# Temporary, steps-re fork only: size the #4222 effect before and after the fix, and
+# regenerate regression reference results for the fix. Never part of the upstream PR.
+name: steps photoelectron check
+on: workflow_dispatch
+env:
+  HDF5_ROOT: /usr
+  OMP_NUM_THREADS: 2
+jobs:
+  run:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        ref: [upstream-base, fix]
+    steps:
+      - uses: jwlawson/actions-setup-cmake@v2
+        with: {cmake-version: '3.31'}
+      - uses: actions/checkout@v6
+        with: {fetch-depth: 0}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.12'}
+      - name: pick source
+        run: |
+          cp -r steps-ci /tmp/steps-ci
+          if [ "${{ matrix.ref }}" = "upstream-base" ]; then git checkout -q fix/photoelectron-direction~1; else git checkout -q fix/photoelectron-direction; fi
+          git log --oneline -1
+          echo "OPENMC_CROSS_SECTIONS=$HOME/nndc_hdf5/cross_sections.xml" >> $GITHUB_ENV
+          echo "OPENMC_ENDF_DATA=$HOME/endf-b-vii.1" >> $GITHUB_ENV
+          echo "$HOME/NJOY2016/build" >> $GITHUB_PATH
+      - name: apt
+        run: |
+          sudo apt -y update
+          sudo apt install -y libpng-dev libnetcdf-dev libpnetcdf-dev libhdf5-serial-dev libeigen3-dev
+      - name: install
+        env: {MPI: n, PHDF5: n, OMP: n, DAGMC: n, XDG: n, EVENT: n, LIBMESH: n}
+        run: $GITHUB_WORKSPACE/tools/ci/gha-install.sh
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/nndc_hdf5
+            ~/endf-b-vii.1
+          key: ${{ runner.os }}-build-xs-cache-${{ hashFiles('tools/ci/download-xs.sh') }}
+      - name: before
+        run: $GITHUB_WORKSPACE/tools/ci/gha-before-script.sh
+      - name: calibrate
+        run: |
+          for pb in "20000 5" "50000 10" "100000 20"; do python /tmp/steps-ci/calibrate.py $pb; done 2>&1 | tee calibrate.txt
+      - name: regenerate reference results (fix only)
+        if: matrix.ref == 'fix'
+        run: |
+          pytest -q --update tests/regression_tests -x -p no:cacheprovider 2>&1 | tail -30 || true
+          git status --porcelain | tee changed.txt
+          git diff --stat | tail -40
+          mkdir -p out && git diff > out/results.diff && cp changed.txt out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: steps-${{ matrix.ref }}
+          path: |
+            calibrate.txt
+            out/
