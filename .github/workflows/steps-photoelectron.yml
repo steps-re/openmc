@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [upstream-base]
+        ref: [upstream-base, fix]
     steps:
       - uses: jwlawson/actions-setup-cmake@v2
         with: {cmake-version: '3.31'}
@@ -46,14 +46,20 @@ jobs:
         run: $GITHUB_WORKSPACE/tools/ci/gha-before-script.sh
       - name: calibrate
         run: |
-          for pb in "20000 5" "50000 10" "100000 20"; do python /tmp/steps-ci/calibrate.py $pb; done 2>&1 | tee calibrate.txt
-      - name: regenerate reference results (fix only)
+          for pb in "20000 10" "50000 20" "100000 40"; do python /tmp/steps-ci/calibrate2.py $pb; done 2>&1 | tee calibrate.txt
+      - name: which regression tests fail (no update)
+        run: |
+          mkdir -p out
+          pytest -q -p no:cacheprovider tests/regression_tests -rf 2>&1 | tee out/pytest.txt | tail -40 || true
+          grep -E '^FAILED' out/pytest.txt | sed 's/^FAILED //; s/ - .*//' | sort -u > out/failed.txt || true
+          cat out/failed.txt
+      - name: regenerate only the failing tests (fix only)
         if: matrix.ref == 'fix'
         run: |
-          pytest -q --update tests/regression_tests -x -p no:cacheprovider 2>&1 | tail -30 || true
-          git status --porcelain | tee changed.txt
-          git diff --stat | tail -40
-          mkdir -p out && git diff > out/results.diff && cp changed.txt out/
+          git checkout -- tests
+          if [ -s out/failed.txt ]; then xargs -a out/failed.txt pytest -q -p no:cacheprovider --update 2>&1 | tail -20 || true; fi
+          git status --porcelain tests | tee out/changed.txt
+          git diff -- tests > out/results.diff
       - uses: actions/upload-artifact@v4
         with:
           name: steps-${{ matrix.ref }}
