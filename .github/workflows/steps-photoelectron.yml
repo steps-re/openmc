@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ref: [upstream-base, fix]
+        ref: [upstream-base]
     steps:
       - uses: jwlawson/actions-setup-cmake@v2
         with: {cmake-version: '3.31'}
@@ -24,7 +24,7 @@ jobs:
       - name: pick source
         run: |
           cp -r steps-ci /tmp/steps-ci
-          if [ "${{ matrix.ref }}" = "upstream-base" ]; then git checkout -q fix/photoelectron-direction~1; else git checkout -q fix/photoelectron-direction; fi
+          if [ "${{ matrix.ref }}" = "upstream-base" ]; then git checkout -q origin/fix/photoelectron-direction~1; else git checkout -q origin/fix/photoelectron-direction; fi
           git log --oneline -1
           echo "OPENMC_CROSS_SECTIONS=$HOME/nndc_hdf5/cross_sections.xml" >> $GITHUB_ENV
           echo "OPENMC_ENDF_DATA=$HOME/endf-b-vii.1" >> $GITHUB_ENV
