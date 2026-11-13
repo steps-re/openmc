@@ -47,7 +47,10 @@ jobs:
       - name: new unit test (must FAIL on base, PASS on fix)
         run: |
           git show origin/fix/photoelectron-direction:tests/unit_tests/test_photoelectron_direction.py > tests/unit_tests/test_photoelectron_direction.py
-          pytest -q -p no:cacheprovider tests/unit_tests/test_photoelectron_direction.py tests/unit_tests/test_photon_heating.py --durations=3 2>&1 | tee calibrate.txt || true
+          sed -i 's/^    assert abs/    print("RATIO", plus_x \/ minus_x, flux, tally.std_dev.ravel(), model.settings.photon_transport, model.settings.electron_treatment); assert abs/' tests/unit_tests/test_photoelectron_direction.py
+          grep -n RATIO tests/unit_tests/test_photoelectron_direction.py
+          python /tmp/steps-ci/calibrate3.py 20000 5 2>&1 | tail -2 | tee -a calibrate.txt
+          pytest -q -s -p no:cacheprovider tests/unit_tests/test_photoelectron_direction.py 2>&1 | tee -a calibrate.txt || true
       - name: regression tests that changed (fix only, must pass)
         if: matrix.ref == 'fix'
         run: |
