@@ -17,10 +17,11 @@ s.run_mode = "fixed source"; s.particles = particles; s.batches = batches
 s.photon_transport = True; s.electron_treatment = "ttb"; s.seed = 1
 s.source = openmc.IndependentSource(space=openmc.stats.Point(), angle=openmc.stats.Isotropic(),
                                     energy=openmc.stats.Discrete([2.6145e6], [1.0]), particle="photon")
-nb = 8
+# edges inside [-pi, pi]: the -x group is the two quarter-width bins either side of +-pi
+edges = [-math.pi, -0.75 * math.pi, -0.25 * math.pi, 0.25 * math.pi, 0.75 * math.pi, math.pi]
 t = openmc.Tally(name="dir")
 t.filters = [openmc.ParticleFilter(["photon"]), openmc.EnergyFilter([1e5, 1e6]),
-             openmc.AzimuthalFilter(np.linspace(-math.pi, math.pi, nb + 1) + math.pi / nb)]
+             openmc.AzimuthalFilter(edges)]
 t.scores = ["flux"]
 model = openmc.Model(openmc.Geometry([lead]), openmc.Materials([pb]), s, openmc.Tallies([t]))
 with tempfile.TemporaryDirectory() as d:
@@ -28,11 +29,9 @@ with tempfile.TemporaryDirectory() as d:
     with openmc.StatePoint(sp_path) as sp:
         tt = sp.get_tally(name="dir")
         m, e = tt.mean.ravel(), tt.std_dev.ravel()
-# bin edges are shifted by pi/nb, so bin nb-1 wraps through phi = pi... find bins by centre
-centres = (np.linspace(-math.pi, math.pi, nb + 1) + math.pi / nb)[:-1] + math.pi / nb
-ip = int(np.argmin(np.abs(np.angle(np.exp(1j * centres)))))           # centre at phi = 0 (+x)
-im = int(np.argmin(np.abs(np.angle(np.exp(1j * (centres - math.pi))))))  # centre at phi = pi (-x)
-r = m[ip] / m[im]; sr = r * math.hypot(e[ip] / m[ip], e[im] / m[im])
-others = np.delete(m, [ip]).mean()
+plus, minus = m[2], m[0] + m[4]          # +x: |phi| < pi/4 ; -x: |phi| > 3pi/4
+sp_, sm_ = e[2], math.hypot(e[0], e[4])
+r = plus / minus; sr = r * math.hypot(sp_ / plus, sm_ / minus)
+side = (m[1] + m[3]) / 2                  # +-y quarter, same width as +x
 print("  bins:", " ".join(f"{x / m.mean():.3f}" for x in m))
-print(f"RESULT particles={particles} batches={batches} +x/-x={r:.4f} +- {sr:.4f} z={(r - 1) / sr:.1f}  +x/others={m[ip] / others:.4f}")
+print(f"RESULT particles={particles} batches={batches} +x/-x={r:.4f} +- {sr:.4f} z={(r - 1) / sr:.1f}  +x/+-y={plus / side:.4f}")
