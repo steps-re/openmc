@@ -46,23 +46,8 @@ jobs:
         run: $GITHUB_WORKSPACE/tools/ci/gha-before-script.sh
       - name: calibrate
         run: |
-          for pb in "20000 10" "50000 20" "100000 40"; do python /tmp/steps-ci/calibrate2.py $pb; done 2>&1 | tee calibrate.txt
-      - name: which regression tests fail (no update)
-        run: |
-          mkdir -p out
-          pytest -q -p no:cacheprovider tests/regression_tests -rf 2>&1 | tee out/pytest.txt | tail -40 || true
-          grep -E '^FAILED' out/pytest.txt | sed 's/^FAILED //; s/ - .*//' | sort -u > out/failed.txt || true
-          cat out/failed.txt
-      - name: regenerate only the failing tests (fix only)
-        if: matrix.ref == 'fix'
-        run: |
-          git checkout -- tests
-          if [ -s out/failed.txt ]; then xargs -a out/failed.txt pytest -q -p no:cacheprovider --update 2>&1 | tail -20 || true; fi
-          git status --porcelain tests | tee out/changed.txt
-          git diff -- tests > out/results.diff
+          for pb in "2000 5" "5000 5" "10000 5" "20000 10"; do /usr/bin/time -f "%e s" python /tmp/steps-ci/calibrate3.py $pb; done 2>&1 | tee calibrate.txt
       - uses: actions/upload-artifact@v4
         with:
           name: steps-${{ matrix.ref }}
-          path: |
-            calibrate.txt
-            out/
+          path: calibrate.txt
