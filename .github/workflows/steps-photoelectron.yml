@@ -24,7 +24,7 @@ jobs:
       - name: pick source
         run: |
           cp -r steps-ci /tmp/steps-ci
-          if [ "${{ matrix.ref }}" = "upstream-base" ]; then git checkout -q origin/fix/photoelectron-direction~1; else git checkout -q origin/fix/photoelectron-direction; fi
+          if [ "${{ matrix.ref }}" = "upstream-base" ]; then FIX=$(git log --format=%H --grep "Sample photoelectron direction relative" origin/fix/photoelectron-direction | tail -1); git checkout -q "$FIX~1"; else git checkout -q origin/fix/photoelectron-direction; fi
           git log --oneline -1
           echo "OPENMC_CROSS_SECTIONS=$HOME/nndc_hdf5/cross_sections.xml" >> $GITHUB_ENV
           echo "OPENMC_ENDF_DATA=$HOME/endf-b-vii.1" >> $GITHUB_ENV
